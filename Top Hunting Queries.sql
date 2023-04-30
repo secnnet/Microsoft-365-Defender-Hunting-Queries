@@ -101,14 +101,75 @@ DeviceProcessEvents
 | join kind=inner DeviceFileEvents on EventTime, DeviceId
 | where ActionType == "FileCreated" and (FileName contains ".exe" or FileName contains ".dll")
 
+Lateral Movement: This query helps identify instances where an attacker is attempting to move laterally within your network, such as by exploiting vulnerabilities or using stolen credentials.
+DeviceProcessEvents
+| where InitiatingProcessFileName == "powershell.exe"
+| join kind=inner DeviceProcessEvents on EventTime, DeviceId
+| where ActionType == "ProcessCreate" and InitiatingProcessFileName != "powershell.exe"
+| join kind=inner DeviceProcessEvents on EventTime, DeviceId
+| where ActionType == "ProcessCreate" and InitiatingProcessFileName == "lsass.exe"
+| join kind=inner DeviceProcessEvents on EventTime, DeviceId
+| where ActionType == "ProcessCreate" and InitiatingProcessFileName != "lsass.exe"
+| join kind=inner DeviceProcessEvents on EventTime, DeviceId
+| where ActionType == "ProcessCreate" and InitiatingProcessFileName != "services.exe" and InitiatingProcessFileName != "svchost.exe" and InitiatingProcessFileName != "wmiprvse.exe"
 
+Don't let attackers move laterally within your network! This query will help you catch any attempts to exploit vulnerabilities or use stolen credentials.
+DeviceProcessEvents
+| where InitiatingProcessFileName == "powershell.exe"
+| join kind=inner DeviceProcessEvents on EventTime, DeviceId
+| where ActionType == "ProcessCreate" and InitiatingProcessFileName != "powershell.exe"
+| join kind=inner DeviceProcessEvents on EventTime, DeviceId
+| where ActionType == "ProcessCreate" and InitiatingProcessFileName == "lsass.exe"
+| join kind=inner DeviceProcessEvents on EventTime, DeviceId
+| where ActionType == "ProcessCreate" and InitiatingProcessFileName != "lsass.exe"
+| join kind=inner DeviceProcessEvents on EventTime, DeviceId
+| where ActionType == "ProcessCreate" and InitiatingProcessFileName != "services.exe" and InitiatingProcessFileName != "svchost.exe" and InitiatingProcessFileName != "wmiprvse.exe"
 
+Remote Access: This query helps identify instances where there is suspicious remote access activity, such as an attacker gaining unauthorized access to a device or network.
+DeviceNetworkEvents
+| where ActionType == "ConnectionEstablished" and RemoteIpAddress != "127.0.0.1" and RemoteIpAddress != "::1"
+| join kind=inner DeviceProcessEvents on EventTime, DeviceId
+| where ActionType == "ProcessCreate" and InitiatingProcessFileName != "services.exe" and InitiatingProcessFileName != "svchost.exe" and InitiatingProcessFileName != "wmiprvse.exe" and InitiatingProcessFileName != "winword.exe" and InitiatingProcessFileName != "excel.exe" and InitiatingProcessFileName != "powerpnt.exe" and InitiatingProcessFileName != "outlook.exe"
 
+Keep an eye out for suspicious remote access activity! This query will help you catch any unauthorized access attempts.
+DeviceNetworkEvents
+| where ActionType == "ConnectionEstablished" and RemoteIpAddress != "127.0.0.1" and RemoteIpAddress != "::1"
+| join kind=inner DeviceProcessEvents on EventTime, DeviceId
+| where ActionType == "ProcessCreate" and InitiatingProcessFileName != "services.exe" and InitiatingProcessFileName != "svchost.exe" and InitiatingProcessFileName != "wmiprvse.exe" and InitiatingProcessFileName != "winword.exe" and InitiatingProcessFileName != "excel.exe" and InitiatingProcessFileName != "powerpnt.exe" and InitiatingProcessFileName != "outlook.exe"
 
+Suspicious Office 365 Activity: This query helps identify instances where there is suspicious activity within Office 365, such as unusual login activity or unusual file access.
+AuditLogs
+| where RecordType == "Exchange" and Operation == "FolderBind" and ResultStatus == "Succeeded"
+| join kind=inner AuditLogs on CorrelationId, UserKey
+| where RecordType == "Exchange" and Operation == "MailboxLogin" and ResultStatus == "Succeeded" and ClientIPAddress != "127.0.0.1"
+| join kind=inner AuditLogs on CorrelationId, UserKey
+| where RecordType == "SharePoint" and Operation == "FileAccessed" and ResultStatus == "Succeeded" and ClientIPAddress != "127.0.0.1"
 
+Keep your Office 365 environment secure! This query will help you catch any suspicious activity, such as unusual login or file access.
+AuditLogs
+| where RecordType == "Exchange" and Operation == "FolderBind" and ResultStatus == "Succeeded"
+| join kind=inner AuditLogs on CorrelationId, UserKey
+| where RecordType == "Exchange" and Operation == "MailboxLogin" and ResultStatus == "Succeeded" and ClientIPAddress != "127.0.0.1"
+| join kind=inner AuditLogs on CorrelationId, UserKey
+| where RecordType == "SharePoint" and Operation == "FileAccessed" and ResultStatus == "Succeeded" and ClientIPAddress != "127.0.0.1"
 
+Suspicious Azure Activity: This query helps identify instances where there is suspicious activity within Azure, such as unusual login activity or resource modifications.
+AuditLogs
+| where ResourceProvider == "Microsoft.Compute" and (OperationName == "Microsoft.Compute/virtualMachines/read" or OperationName == "Microsoft.Compute/virtualMachines/extensions/read" or OperationName == "Microsoft.Compute/virtualMachines/extensions/write")
+| join kind=inner AuditLogs on CorrelationId, UserKey
+| where ResourceProvider == "Microsoft.Compute" and (OperationName == "Microsoft.Compute/virtualMachines/start" or OperationName == "Microsoft.Compute/virtualMachines/restart" or OperationName == "Microsoft.Compute/virtualMachines/deallocate")
 
+Keep your Azure environment secure! This query will help you catch any suspicious activity, such as unusual login or resource modifications.
+AuditLogs
+| where ResourceProvider == "Microsoft.Compute" and (OperationName == "Microsoft.Compute/virtualMachines/read" or OperationName == "Microsoft.Compute/virtualMachines/extensions/read" or OperationName == "Microsoft.Compute/virtualMachines/extensions/write")
+| join kind=inner AuditLogs on CorrelationId, UserKey
+| where ResourceProvider == "Microsoft.Compute" and (OperationName == "Microsoft.Compute/virtualMachines/start" or OperationName == "Microsoft.Compute/virtualMachines/restart" or OperationName == "Microsoft.Compute/virtualMachines/deallocate")
 
+Suspicious Endpoint Protection Activity: This query helps identify instances where there is suspicious activity related to endpoint protection, such as malware detection or unauthorized changes to security settings.
+DeviceProtectionEvents
+| where ActionType == "MalwareDetected" and Severity == "High" and (ActionInitiatedBy == "User" or ActionInitiatedBy == "Unknown")
+| join kind=inner DeviceSecurityEvents on EventTime, DeviceId
+| where ActionType == "SecurityPolicyChanged" and (NewState == "Disabled" or NewState == "Modified")
 
 
 

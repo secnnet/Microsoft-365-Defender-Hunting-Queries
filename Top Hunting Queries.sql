@@ -171,13 +171,50 @@ DeviceProtectionEvents
 | join kind=inner DeviceSecurityEvents on EventTime, DeviceId
 | where ActionType == "SecurityPolicyChanged" and (NewState == "Disabled" or NewState == "Modified")
 
+Brute Force Attack: This query helps identify instances where there is suspicious activity related to a brute force attack, such as repeated login attempts or failed authentication attempts.
+AuditLogs
+| where Category == "Authentication" and ActivityDisplayName == "Credential submitted" and ResultType == "Failure"
+| join kind=inner AuditLogs on CorrelationId, UserKey
+| where Category == "Authentication" and ActivityDisplayName == "Credential submitted" and ResultType == "Failure" and TimeGenerated > ago(1d)
+| summarize Count=count() by UserKey, IPAddress
+| where Count > 50
 
+Don't let attackers brute force their way into your system! This query will help you catch any repeated login attempts or failed authentication attempts.
+AuditLogs
+| where Category == "Authentication" and ActivityDisplayName == "Credential submitted" and ResultType == "Failure"
+| join kind=inner AuditLogs on CorrelationId, UserKey
+| where Category == "Authentication" and ActivityDisplayName == "Credential submitted" and ResultType == "Failure" and TimeGenerated > ago(1d)
+| summarize Count=count() by UserKey, IPAddress
+| where Count > 50
 
+Account Enumeration: This query helps identify instances where an attacker is attempting to enumerate accounts in your environment, such as by using a list of known usernames.
+AuditLogs
+| where Category == "Authentication" and ActivityDisplayName == "AuthenticationPolicyViolation" and ResultType == "Failure" and AdditionalDetails contains "Username enumeration"
+| join kind=inner AuditLogs on CorrelationId, UserKey
+| where Category == "Authentication" and ActivityDisplayName == "Credential submitted" and ResultType == "Failure" and TimeGenerated > ago(1d)
+| summarize Count=count() by UserKey, IPAddress
+| where Count > 50
 
+Don't let attackers enumerate accounts in your environment! This query will help you catch any attempts to use a list of known usernames.
+AuditLogs
+| where Category == "Authentication" and ActivityDisplayName == "AuthenticationPolicyViolation" and ResultType == "Failure" and AdditionalDetails contains "Username enumeration"
+| join kind=inner AuditLogs on CorrelationId, UserKey
+| where Category == "Authentication" and ActivityDisplayName == "Credential submitted" and ResultType == "Failure" and TimeGenerated > ago(1d)
+| summarize Count=count() by UserKey, IPAddress
+| where Count > 50
 
+Data Exfiltration: This query helps identify instances where an attacker is attempting to exfiltrate data from your environment, such as by transferring large amounts of data to an external location.
+DeviceFileEvents
+| where ActionType == "FileCreated" and (FileName contains ".doc" or FileName contains ".docx" or FileName contains ".xls" or FileName contains ".xlsx" or FileName contains ".ppt" or FileName contains ".pptx" or FileName contains ".pdf")
+| join kind=inner DeviceNetworkEvents on EventTime, DeviceId
+| where ActionType == "ConnectionEstablished" and RemoteIpAddress != "127.0.0.1" and RemoteIpAddress != "::1"
+| summarize TotalSize=sum(FileSize) by RemoteIpAddress
+| where TotalSize > 10000000
 
-
-
+Don't let attackers exfiltrate your data! This query will help you catch any attempts to transfer large amounts of data to an external location.
+DeviceFileEvents
+| where ActionType == "FileCreated" and (FileName contains ".doc" or FileName contains ".docx" or FileName contains ".xls" or FileName contains ".xlsx" or FileName contains ".ppt" or FileName contains ".pptx" or FileName contains ".pdf")
+| join kind=inner Device
 
 
 

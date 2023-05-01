@@ -250,4 +250,105 @@ AuditLogs
 | summarize count() by UserKey
 | where count() > 100
 
+Suspicious Azure AD Activity: This query helps identify instances where there is suspicious activity related to Azure AD, such as unusual login activity or changes to user permissions.
+AuditLogs
+| where Category == "Authentication" and ActivityDisplayName == "Conditional Access policy evaluation" and ResultType == "Failure" and AdditionalDetails contains "Policy store read failed"
+| join kind=inner AuditLogs on CorrelationId, UserKey
+| where Category == "DirectoryService" and ActivityDisplayName == "Update directory role membership" and ResultType == "Success" and TimeGenerated > ago(1d)
+
+Don't let attackers compromise your Azure AD! This query will help you catch any suspicious activity related to unusual login activity or changes to user permissions.
+AuditLogs
+| where Category == "Authentication" and ActivityDisplayName == "Conditional Access policy evaluation" and ResultType == "Failure" and AdditionalDetails contains "Policy store read failed"
+| join kind=inner AuditLogs on CorrelationId, UserKey
+| where Category == "DirectoryService" and ActivityDisplayName == "Update directory role membership" and ResultType == "Success" and TimeGenerated > ago(1d)
+
+Suspicious DNS Activity: This query helps identify instances where there is suspicious DNS activity, such as the use of a known malicious domain or unusual DNS requests.
+DeviceNetworkEvents
+| where RemoteIPAddress != "127.0.0.1" and RemoteIPAddress != "::1" and RemoteIPAddress != "fe80::1"
+| join kind=inner DeviceProcessEvents on EventTime, DeviceId
+| where InitiatingProcessFileName contains "svchost.exe" and InitiatingProcessCommandLine contains "-k NetworkService"
+| join kind=inner DeviceDnsEvents on EventTime, DeviceId
+| where DnsQueryStatus == "Success" and (DnsQueryName contains ".com" or DnsQueryName contains ".net" or DnsQueryName contains ".org" or DnsQueryName contains ".ru" or DnsQueryName contains ".cn")
+
+Don't let attackers abuse your DNS! This query will help you catch any suspicious DNS activity, such as the use of a known malicious domain or unusual DNS requests.
+DeviceNetworkEvents
+| where RemoteIPAddress != "127.0.0.1" and RemoteIPAddress != "::1" and RemoteIPAddress != "fe80::1"
+| join kind=inner DeviceProcessEvents on EventTime, DeviceId
+| where InitiatingProcessFileName contains "svchost.exe" and InitiatingProcessCommandLine contains "-k NetworkService"
+| join kind=inner DeviceDnsEvents on EventTime, DeviceId
+| where DnsQueryStatus == "Success" and (DnsQueryName contains ".com" or DnsQueryName contains ".net" or DnsQueryName contains ".org" or DnsQueryName contains ".ru" or DnsQueryName contains ".cn")
+
+Suspicious SharePoint Activity: This query helps identify instances where there is suspicious activity related to SharePoint, such as unusual file access or changes to file permissions.
+AuditLogs
+| where RecordType == "SharePoint" and Operation == "FileAccessed" and ResultStatus == "Succeeded" and (UserKey == "" or UserKey == "-")
+| join kind=inner AuditLogs on CorrelationId, UserKey
+| where RecordType == "SharePoint" and Operation == "UpdateListItem" and ResultStatus == "Succeeded" and TimeGenerated > ago(1d)
+
+Suspicious Exchange Activity: This query helps identify instances where there is suspicious activity related to Exchange, such as unusual email activity or changes to mailbox permissions.
+AuditLogs
+| where RecordType == "Exchange" and (Operation == "SendAs" or Operation == "SendOnBehalf")
+| join kind=inner AuditLogs on CorrelationId, UserKey
+| where RecordType == "Exchange" and Operation == "UpdateMailbox" and ResultStatus == "Succeeded" and TimeGenerated > ago(1d)
+
+Don't let attackers compromise your Exchange! This query will help you catch any suspicious activity related to unusual email activity or changes to mailbox permissions.
+AuditLogs
+| where RecordType == "Exchange" and (Operation == "SendAs" or Operation == "SendOnBehalf")
+| join kind=inner AuditLogs on CorrelationId, UserKey
+| where RecordType == "Exchange" and Operation == "UpdateMailbox" and ResultStatus == "Succeeded" and TimeGenerated > ago(1d)
+
+Suspicious Microsoft Defender for Endpoint Activity: This query helps identify instances where there is suspicious activity related to Microsoft Defender for Endpoint, such as the detection of known malware or suspicious behavior.
+DeviceEvents
+| where Timestamp > ago(1d) and ActionType == "MalwareDetection" and Severity == "High" and (MalwareStatus == "Detected" or MalwareStatus == "PartiallyDetected")
+| summarize count() by ComputerName, ThreatName
+| order by count_ desc
+
+Don't let attackers evade Microsoft Defender for Endpoint! This query will help you catch any suspicious activity related to the detection of known malware or suspicious behavior.
+DeviceEvents
+| where Timestamp > ago(1d) and ActionType == "MalwareDetection" and Severity == "High" and (MalwareStatus == "Detected" or MalwareStatus == "PartiallyDetected")
+| summarize count() by ComputerName, ThreatName
+| order by count_ desc
+
+Suspicious Azure Sentinel Activity: This query helps identify instances where there is suspicious activity related to Azure Sentinel, such as the detection of suspicious events or the use of unusual analytics rules.
+SecurityEvent
+| where ProviderName == "Azure Sentinel"
+| join kind=inner SecurityEvent on CorrelationId, EventId
+| where EventId == "16908289" and Level == "Warning" and TimeGenerated > ago(1d)
+| join kind=inner SecurityEvent on CorrelationId, EventId
+| where EventId == "16908290" and Level == "Informational" and TimeGenerated > ago(1d)
+
+Don't let attackers evade Azure Sentinel! This query will help you catch any suspicious activity related to the detection of suspicious events or the use of unusual analytics rules.
+SecurityEvent
+| where ProviderName == "Azure Sentinel"
+| join kind=inner SecurityEvent on CorrelationId, EventId
+| where EventId == "16908289" and Level == "Warning" and TimeGenerated > ago(1d)
+| join kind=inner SecurityEvent on CorrelationId, EventId
+| where EventId == "16908290" and Level == "Informational" and TimeGenerated > ago(1d)
+
+Suspicious Azure Security Center Activity: This query helps identify instances where there is suspicious activity related to Azure Security Center, such as the detection of known vulnerabilities or the use of unusual security recommendations.
+SecurityAlert
+| where ProviderName == "Azure Security Center"
+| join kind=inner SecurityEvent on CorrelationId, EventId
+| where EventId == "4658" and TimeGenerated > ago(1d)
+| join kind=inner SecurityEvent on CorrelationId, EventId
+| where EventId == "4659" and TimeGenerated > ago(1d)
+
+Don't let attackers evade Azure Security Center! This query will help you catch any suspicious activity related to the detection of known vulnerabilities or the use of unusual security recommendations.
+SecurityAlert
+| where ProviderName == "Azure Security Center"
+| join kind=inner SecurityEvent on CorrelationId, EventId
+| where EventId == "4658" and TimeGenerated > ago(1d)
+| join kind=inner SecurityEvent on CorrelationId, EventId
+| where EventId == "4659" and TimeGenerated > ago(1d)
+
+Suspicious Azure Firewall Activity: This query helps identify instances where there is suspicious activity related to Azure Firewall, such as the use of known malicious IP addresses or unusual traffic patterns.
+AzureDiagnostics
+| where Category == "AzureFirewallApplicationRule" and TimeGenerated > ago(1d)
+| where RuleAction == "Deny" and DestinationIP contains "127.0.0.1" or DestinationIP contains "localhost" or DestinationIP contains "::1" or DestinationIP contains "fe80" or DestinationIP contains "169.254"
+| summarize count() by RuleName
+
+Don't let attackers compromise your Azure Firewall! This query will help you catch any suspicious activity related to the use of known malicious IP addresses or unusual traffic patterns.
+AzureDiagnostics
+| where Category == "AzureFirewallApplicationRule" and TimeGenerated > ago(1d)
+| where RuleAction == "Deny" and DestinationIP contains "127.0.0.1" or DestinationIP contains "localhost" or DestinationIP contains "::1" or DestinationIP contains "fe80" or DestinationIP contains "169.254"
+| summarize count() by RuleName
 

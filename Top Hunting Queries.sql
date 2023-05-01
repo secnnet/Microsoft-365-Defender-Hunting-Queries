@@ -216,7 +216,38 @@ DeviceFileEvents
 | where ActionType == "FileCreated" and (FileName contains ".doc" or FileName contains ".docx" or FileName contains ".xls" or FileName contains ".xlsx" or FileName contains ".ppt" or FileName contains ".pptx" or FileName contains ".pdf")
 | join kind=inner Device
 
+Suspicious PowerShell Activity: This query helps identify instances where there is suspicious activity related to PowerShell, such as the use of uncommon commands or suspicious command parameters.
+DeviceProcessEvents
+| where InitiatingProcessFileName == "powershell.exe"
+| join kind=inner DeviceFileEvents on EventTime, DeviceId
+| where ActionType == "FileCreated" and (FileName contains ".ps1" or FileName contains ".bat" or FileName contains ".cmd" or FileName contains ".vbs" or FileName contains ".js")
+| join kind=inner DeviceRegistryEvents on EventTime, DeviceId
+| where RegistryValueName == "CommandLine" and RegistryValueData contains "-Command"
+| summarize count() by InitiatingProcessCommandLine
 
+Don't let attackers use PowerShell against you! This query will help you catch any suspicious activity related to PowerShell, such as the use of uncommon commands or suspicious command parameters.
+DeviceProcessEvents
+| where InitiatingProcessFileName == "powershell.exe"
+| join kind=inner DeviceFileEvents on EventTime, DeviceId
+| where ActionType == "FileCreated" and (FileName contains ".ps1" or FileName contains ".bat" or FileName contains ".cmd" or FileName contains ".vbs" or FileName contains ".js")
+| join kind=inner DeviceRegistryEvents on EventTime, DeviceId
+| where RegistryValueName == "CommandLine" and RegistryValueData contains "-Command"
+| summarize count() by InitiatingProcessCommandLine
 
+Data Manipulation: This query helps identify instances where there is suspicious activity related to data manipulation, such as unauthorized changes to data or modifications to data access permissions.
+AuditLogs
+| where Category == "Data" and ActivityDisplayName == "Update"
+| join kind=inner AuditLogs on CorrelationId, UserKey
+| where Category == "Data" and ActivityDisplayName == "Update" and TimeGenerated > ago(1d)
+| summarize count() by UserKey
+| where count() > 100
+
+Don't let attackers manipulate your data! This query will help you catch any suspicious activity related to unauthorized changes to data or modifications to data access permissions.
+AuditLogs
+| where Category == "Data" and ActivityDisplayName == "Update"
+| join kind=inner AuditLogs on CorrelationId, UserKey
+| where Category == "Data" and ActivityDisplayName == "Update" and TimeGenerated > ago(1d)
+| summarize count() by UserKey
+| where count() > 100
 
 

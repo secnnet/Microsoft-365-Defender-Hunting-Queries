@@ -164,3 +164,79 @@ AzureDiagnostics
 | where RuleAction == "Deny" and DestinationIP contains "127.0.0.1" or DestinationIP contains "localhost" or DestinationIP contains "::1" or DestinationIP contains "fe80" or DestinationIP contains "169.254"
 | summarize count() by RuleName
 
+Unusual sign-in locations:
+SigninLogs
+| where TimeGenerated > ago(30d)
+| summarize count() by IPAddress, Location, UserPrincipalName
+| sort by count_ desc
+| limit 10
+
+Rarely executed PowerShell scripts:
+DeviceProcessEvents
+| where TimeGenerated > ago(30d)
+| where FileName == "powershell.exe" or FileName == "powershell_ise.exe"
+| summarize count() by ProcessCommandLine
+| sort by count_ asc
+| limit 10
+
+Potential data exfiltration via email attachments:
+EmailAttachmentInfo
+| where TimeGenerated > ago(30d)
+| summarize count() by FileName, FileType, SenderFromAddress, RecipientEmailAddress
+| sort by count_ desc
+| limit 10
+
+Suspicious file activities (file creation, modification, and deletion):
+DeviceFileEvents
+| where TimeGenerated > ago(30d)
+| where ActionType in ("FileCreated", "FileModified", "FileDeleted")
+| summarize count() by ActionType, FileName, DeviceName
+| sort by count_ desc
+| limit 10
+
+Abnormal network connections:
+DeviceNetworkEvents
+| where TimeGenerated > ago(30d)
+| summarize count() by RemoteIP, RemoteUrl, RemotePort, DeviceName
+| sort by count_ desc
+| limit 10
+
+Unusual Office 365 activities:
+OfficeActivity
+| where TimeGenerated > ago(30d)
+| where RecordType == "AzureActiveDirectory"
+| summarize count() by UserId, Operation
+| sort by count_ desc
+| limit 10
+
+Suspicious logon failures:
+SigninLogs
+| where TimeGenerated > ago(30d)
+| where ResultType !in (0, 50125, 50140)
+| summarize count() by UserPrincipalName, ResultType, ResultDescription
+| sort by count_ desc
+| limit 10
+
+Potential phishing email detection:
+EmailEvents
+| where TimeGenerated > ago(30d)
+| where ThreatTypes has "phish"
+| summarize count() by SenderFromAddress, RecipientEmailAddress, Subject, ThreatTypes
+| sort by count_ desc
+| limit 10
+
+Unusual file sharing activities:
+FileShareEvents
+| where TimeGenerated > ago(30d)
+| where ActionType in ("FileShared", "FileUnshared")
+| summarize count() by ActionType, FileName, AccountName, SharedWithUser
+| sort by count_ desc
+| limit 10
+
+Suspicious mailbox access attempts:
+MailboxAccessEvents
+| where TimeGenerated > ago(30d)
+| where ActionType == "MailboxLogin"
+| summarize count() by MailboxOwnerUPN, ClientIPAddress, Operation
+| sort by count_ desc
+| limit 10

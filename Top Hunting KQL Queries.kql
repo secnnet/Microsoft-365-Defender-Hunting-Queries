@@ -1,52 +1,52 @@
-PowerShell? More like PowerHell! This query will catch all those sneaky bastards who think they can hide behind PowerShell.
+// PowerShell? More like PowerHell! This query will catch all those sneaky bastards who think they can hide behind PowerShell.
 DeviceProcessEvents
 | where ActionType == "ProcessCreate" and FileName == "powershell.exe" and InitiatingProcessFileName != "services.exe" and InitiatingProcessFileName != "svchost.exe" and InitiatingProcessFileName != "wmiprvse.exe" and InitiatingProcessFileName != "winword.exe" and CommandLine contains "-encodedCommand"
 
-Don't trust those Microsoft Office macros. This query will help you identify when those pesky macros try to sneak in some malware.
+// // Don't trust those Microsoft Office macros. This query will help you identify when those pesky macros try to sneak in some malware.
 DeviceProcessEvents
 | where ActionType == "OfficeMacroExecution" and (FileName contains "docm" or FileName contains "xlsm" or FileName contains "pptm") and MacroType == "VbaMacro" and InitiatingProcessFileName != "winword.exe" and InitiatingProcessFileName != "excel.exe" and InitiatingProcessFileName != "powerpnt.exe"
 | join kind=inner DeviceFileEvents on EventTime, DeviceId
 | where ActionType == "FileCreated" and (FileName contains ".exe" or FileName contains ".dll")
 
-Don't let those pesky hackers steal your credentials! Use this query to catch them in the act.
+// // Don't let those pesky hackers steal your credentials! Use this query to catch them in the act.
 DeviceProcessEvents
 | where ActionType == "ProcessCreate" and InitiatingProcessFileName != "lsass.exe" and InitiatingProcessFileName != "services.exe" and (CommandLine contains "mimikatz" or CommandLine contains "gsecdump")
 
-Don't let your sensitive data leave your network! This query will help you identify when someone's trying to exfiltrate your data.
+// // Don't let your sensitive data leave your network! This query will help you identify when someone's trying to exfiltrate your data.
 DeviceNetworkEvents
 | where ActionType == "NetworkFlow" and RemoteUrl !contains ".microsoft.com" and RemoteUrl !contains ".windowsupdate.com" and RemoteUrl !contains ".office.com"
 | join kind=inner DeviceFileEvents on EventTime, DeviceId
 | where ActionType == "FileCreated" and (FileName contains ".zip" or FileName contains ".rar" or FileName contains ".7z" or FileName contains ".tar" or FileName contains ".cab" or FileName contains ".doc" or FileName contains ".xls" or FileName contains ".ppt" or FileName contains ".pdf" or FileName contains ".txt" or FileName contains ".csv" or FileName contains ".json" or FileName contains ".xml" or FileName contains ".sql" or FileName contains ".bak" or FileName contains ".mdb")
 
-Watch out for those malicious emails from outside your organization! This query will help you catch any malware or phishing attempts.
+// Watch out for those malicious emails from outside your organization! This query will help you catch any malware or phishing attempts.
 EmailEvents
 | where IsExternalSender == true and ThreatSeverity == "High" and Subject contains "Phishing"
 | join kind=inner FileAttachmentEvents on EventTime, IncidentId
 | where ThreatSeverity == "High" and FileType == "Executable"
 
-Keep an eye out for suspicious user behavior! This query will help you catch any anomalies that may indicate an attack.
+// Keep an eye out for suspicious user behavior! This query will help you catch any anomalies that may indicate an attack.
 DeviceBehaviorAnalytics
 | where ActionType == "AnomalousUserAccountActivity" and Severity == "High"
 | join kind=inner DeviceFileEvents on EventTime, DeviceId
 | where ActionType == "FileCreated" and (FileName contains ".exe" or FileName contains ".dll" or FileName contains ".bat" or FileName contains ".ps1" or FileName contains ".vbs")
 
-Keep your Azure AD secure! This query will help you identify any suspicious activity, such as unauthorized access attempts or privilege escalation.
+// Keep your Azure AD secure! This query will help you identify any suspicious activity, such as unauthorized access attempts or privilege escalation.
 AuditLogs
 | where Category == "Authentication" and ResultType == "Failure" and ActivityDisplayName == "Sign-in error code" and ActivityErrorCode == "50126"
 | join kind=inner AuditLogs on CorrelationId, DeviceId
 | where Category == "User and group management" and ActivityDisplayName == "Add member to group" and TargetResources[0].ResourceType == "Microsoft.Azure.ActiveDirectory/groups"
 
-Keep your SharePoint secure! This query will help you catch any unauthorized access attempts or unusual file modifications.
+// Keep your SharePoint secure! This query will help you catch any unauthorized access attempts or unusual file modifications.
 AuditLogs
 | where RecordType == "SharePoint" and OperationName == "Copy" and UserKey != "System Account" and SourceFileName != TargetFileName
 
-Keep your devices malware-free! This query will help you identify any instances of malware execution.
+// Keep your devices malware-free! This query will help you identify any instances of malware execution.
 DeviceProcessEvents
 | where InitiatingProcessFileName != "services.exe" and InitiatingProcessFileName != "svchost.exe" and InitiatingProcessFileName != "wmiprvse.exe" and InitiatingProcessFileName != "winword.exe" and InitiatingProcessFileName != "excel.exe" and InitiatingProcessFileName != "powerpnt.exe" and InitiatingProcessFileName != "outlook.exe"
 | join kind=inner DeviceFileEvents on EventTime, DeviceId
 | where ActionType == "FileCreated" and (FileName contains ".exe" or FileName contains ".dll")
 
-Don't let attackers move laterally within your network! This query will help you catch any attempts to exploit vulnerabilities or use stolen credentials.
+// // Don't let attackers move laterally within your network! This query will help you catch any attempts to exploit vulnerabilities or use stolen credentials.
 DeviceProcessEvents
 | where InitiatingProcessFileName == "powershell.exe"
 | join kind=inner DeviceProcessEvents on EventTime, DeviceId
@@ -58,13 +58,13 @@ DeviceProcessEvents
 | join kind=inner DeviceProcessEvents on EventTime, DeviceId
 | where ActionType == "ProcessCreate" and InitiatingProcessFileName != "services.exe" and InitiatingProcessFileName != "svchost.exe" and InitiatingProcessFileName != "wmiprvse.exe"
 
-Keep an eye out for suspicious remote access activity! This query will help you catch any unauthorized access attempts.
+// Keep an eye out for suspicious remote access activity! This query will help you catch any unauthorized access attempts.
 DeviceNetworkEvents
 | where ActionType == "ConnectionEstablished" and RemoteIpAddress != "127.0.0.1" and RemoteIpAddress != "::1"
 | join kind=inner DeviceProcessEvents on EventTime, DeviceId
 | where ActionType == "ProcessCreate" and InitiatingProcessFileName != "services.exe" and InitiatingProcessFileName != "svchost.exe" and InitiatingProcessFileName != "wmiprvse.exe" and InitiatingProcessFileName != "winword.exe" and InitiatingProcessFileName != "excel.exe" and InitiatingProcessFileName != "powerpnt.exe" and InitiatingProcessFileName != "outlook.exe"
 
-Keep your Office 365 environment secure! This query will help you catch any suspicious activity, such as unusual login or file access.
+// Keep your Office 365 environment secure! This query will help you catch any suspicious activity, such as unusual login or file access.
 AuditLogs
 | where RecordType == "Exchange" and Operation == "FolderBind" and ResultStatus == "Succeeded"
 | join kind=inner AuditLogs on CorrelationId, UserKey
@@ -72,13 +72,13 @@ AuditLogs
 | join kind=inner AuditLogs on CorrelationId, UserKey
 | where RecordType == "SharePoint" and Operation == "FileAccessed" and ResultStatus == "Succeeded" and ClientIPAddress != "127.0.0.1"
 
-Keep your Azure environment secure! This query will help you catch any suspicious activity, such as unusual login or resource modifications.
+// Keep your Azure environment secure! This query will help you catch any suspicious activity, such as unusual login or resource modifications.
 AuditLogs
 | where ResourceProvider == "Microsoft.Compute" and (OperationName == "Microsoft.Compute/virtualMachines/read" or OperationName == "Microsoft.Compute/virtualMachines/extensions/read" or OperationName == "Microsoft.Compute/virtualMachines/extensions/write")
 | join kind=inner AuditLogs on CorrelationId, UserKey
 | where ResourceProvider == "Microsoft.Compute" and (OperationName == "Microsoft.Compute/virtualMachines/start" or OperationName == "Microsoft.Compute/virtualMachines/restart" or OperationName == "Microsoft.Compute/virtualMachines/deallocate")
 
-Don't let attackers brute force their way into your system! This query will help you catch any repeated login attempts or failed authentication attempts.
+// // Don't let attackers brute force their way into your system! This query will help you catch any repeated login attempts or failed authentication attempts.
 AuditLogs
 | where Category == "Authentication" and ActivityDisplayName == "Credential submitted" and ResultType == "Failure"
 | join kind=inner AuditLogs on CorrelationId, UserKey
@@ -86,7 +86,7 @@ AuditLogs
 | summarize Count=count() by UserKey, IPAddress
 | where Count > 50
 
-Don't let attackers enumerate accounts in your environment! This query will help you catch any attempts to use a list of known usernames.
+// // Don't let attackers enumerate accounts in your environment! This query will help you catch any attempts to use a list of known usernames.
 AuditLogs
 | where Category == "Authentication" and ActivityDisplayName == "AuthenticationPolicyViolation" and ResultType == "Failure" and AdditionalDetails contains "Username enumeration"
 | join kind=inner AuditLogs on CorrelationId, UserKey
@@ -94,12 +94,12 @@ AuditLogs
 | summarize Count=count() by UserKey, IPAddress
 | where Count > 50
 
-Don't let attackers exfiltrate your data! This query will help you catch any attempts to transfer large amounts of data to an external location.
+// // Don't let attackers exfiltrate your data! This query will help you catch any attempts to transfer large amounts of data to an external location.
 DeviceFileEvents
 | where ActionType == "FileCreated" and (FileName contains ".doc" or FileName contains ".docx" or FileName contains ".xls" or FileName contains ".xlsx" or FileName contains ".ppt" or FileName contains ".pptx" or FileName contains ".pdf")
 | join kind=inner Device
 
-Don't let attackers use PowerShell against you! This query will help you catch any suspicious activity related to PowerShell, such as the use of uncommon commands or suspicious command parameters.
+// // Don't let attackers use PowerShell against you! This query will help you catch any suspicious activity related to PowerShell, such as the use of uncommon commands or suspicious command parameters.
 DeviceProcessEvents
 | where InitiatingProcessFileName == "powershell.exe"
 | join kind=inner DeviceFileEvents on EventTime, DeviceId
@@ -108,7 +108,7 @@ DeviceProcessEvents
 | where RegistryValueName == "CommandLine" and RegistryValueData contains "-Command"
 | summarize count() by InitiatingProcessCommandLine
 
-Don't let attackers manipulate your data! This query will help you catch any suspicious activity related to unauthorized changes to data or modifications to data access permissions.
+// Don't let attackers manipulate your data! This query will help you catch any suspicious activity related to unauthorized changes to data or modifications to data access permissions.
 AuditLogs
 | where Category == "Data" and ActivityDisplayName == "Update"
 | join kind=inner AuditLogs on CorrelationId, UserKey
@@ -116,13 +116,13 @@ AuditLogs
 | summarize count() by UserKey
 | where count() > 100
 
-Don't let attackers compromise your Azure AD! This query will help you catch any suspicious activity related to unusual login activity or changes to user permissions.
+// Don't let attackers compromise your Azure AD! This query will help you catch any suspicious activity related to unusual login activity or changes to user permissions.
 AuditLogs
 | where Category == "Authentication" and ActivityDisplayName == "Conditional Access policy evaluation" and ResultType == "Failure" and AdditionalDetails contains "Policy store read failed"
 | join kind=inner AuditLogs on CorrelationId, UserKey
 | where Category == "DirectoryService" and ActivityDisplayName == "Update directory role membership" and ResultType == "Success" and TimeGenerated > ago(1d)
 
-Don't let attackers abuse your DNS! This query will help you catch any suspicious DNS activity, such as the use of a known malicious domain or unusual DNS requests.
+// Don't let attackers abuse your DNS! This query will help you catch any suspicious DNS activity, such as the use of a known malicious domain or unusual DNS requests.
 DeviceNetworkEvents
 | where RemoteIPAddress != "127.0.0.1" and RemoteIPAddress != "::1" and RemoteIPAddress != "fe80::1"
 | join kind=inner DeviceProcessEvents on EventTime, DeviceId
@@ -130,19 +130,19 @@ DeviceNetworkEvents
 | join kind=inner DeviceDnsEvents on EventTime, DeviceId
 | where DnsQueryStatus == "Success" and (DnsQueryName contains ".com" or DnsQueryName contains ".net" or DnsQueryName contains ".org" or DnsQueryName contains ".ru" or DnsQueryName contains ".cn")
 
-Don't let attackers compromise your Exchange! This query will help you catch any suspicious activity related to unusual email activity or changes to mailbox permissions.
+// Don't let attackers compromise your Exchange! This query will help you catch any suspicious activity related to unusual email activity or changes to mailbox permissions.
 AuditLogs
 | where RecordType == "Exchange" and (Operation == "SendAs" or Operation == "SendOnBehalf")
 | join kind=inner AuditLogs on CorrelationId, UserKey
 | where RecordType == "Exchange" and Operation == "UpdateMailbox" and ResultStatus == "Succeeded" and TimeGenerated > ago(1d)
 
-Don't let attackers evade Microsoft Defender for Endpoint! This query will help you catch any suspicious activity related to the detection of known malware or suspicious behavior.
+// Don't let attackers evade Microsoft Defender for Endpoint! This query will help you catch any suspicious activity related to the detection of known malware or suspicious behavior.
 DeviceEvents
 | where Timestamp > ago(1d) and ActionType == "MalwareDetection" and Severity == "High" and (MalwareStatus == "Detected" or MalwareStatus == "PartiallyDetected")
 | summarize count() by ComputerName, ThreatName
 | order by count_ desc
 
-Don't let attackers evade Azure Sentinel! This query will help you catch any suspicious activity related to the detection of suspicious events or the use of unusual analytics rules.
+// Don't let attackers evade Azure Sentinel! This query will help you catch any suspicious activity related to the detection of suspicious events or the use of unusual analytics rules.
 SecurityEvent
 | where ProviderName == "Azure Sentinel"
 | join kind=inner SecurityEvent on CorrelationId, EventId
@@ -150,7 +150,7 @@ SecurityEvent
 | join kind=inner SecurityEvent on CorrelationId, EventId
 | where EventId == "16908290" and Level == "Informational" and TimeGenerated > ago(1d)
 
-Don't let attackers evade Azure Security Center! This query will help you catch any suspicious activity related to the detection of known vulnerabilities or the use of unusual security recommendations.
+// Don't let attackers evade Azure Security Center! This query will help you catch any suspicious activity related to the detection of known vulnerabilities or the use of unusual security recommendations.
 SecurityAlert
 | where ProviderName == "Azure Security Center"
 | join kind=inner SecurityEvent on CorrelationId, EventId
@@ -158,20 +158,20 @@ SecurityAlert
 | join kind=inner SecurityEvent on CorrelationId, EventId
 | where EventId == "4659" and TimeGenerated > ago(1d)
 
-Don't let attackers compromise your Azure Firewall! This query will help you catch any suspicious activity related to the use of known malicious IP addresses or unusual traffic patterns.
+// Don't let attackers compromise your Azure Firewall! This query will help you catch any suspicious activity related to the use of known malicious IP addresses or unusual traffic patterns.
 AzureDiagnostics
 | where Category == "AzureFirewallApplicationRule" and TimeGenerated > ago(1d)
 | where RuleAction == "Deny" and DestinationIP contains "127.0.0.1" or DestinationIP contains "localhost" or DestinationIP contains "::1" or DestinationIP contains "fe80" or DestinationIP contains "169.254"
 | summarize count() by RuleName
 
-Unusual sign-in locations:
+// Unusual sign-in locations:
 SigninLogs
 | where TimeGenerated > ago(30d)
 | summarize count() by IPAddress, Location, UserPrincipalName
 | sort by count_ desc
 | limit 10
 
-Rarely executed PowerShell scripts:
+// Rarely executed PowerShell scripts:
 DeviceProcessEvents
 | where TimeGenerated > ago(30d)
 | where FileName == "powershell.exe" or FileName == "powershell_ise.exe"
@@ -179,14 +179,14 @@ DeviceProcessEvents
 | sort by count_ asc
 | limit 10
 
-Potential data exfiltration via email attachments:
+// Potential data exfiltration via email attachments:
 EmailAttachmentInfo
 | where TimeGenerated > ago(30d)
 | summarize count() by FileName, FileType, SenderFromAddress, RecipientEmailAddress
 | sort by count_ desc
 | limit 10
 
-Suspicious file activities (file creation, modification, and deletion):
+// Suspicious file activities (file creation, modification, and deletion):
 DeviceFileEvents
 | where TimeGenerated > ago(30d)
 | where ActionType in ("FileCreated", "FileModified", "FileDeleted")
@@ -194,14 +194,14 @@ DeviceFileEvents
 | sort by count_ desc
 | limit 10
 
-Abnormal network connections:
+// Abnormal network connections:
 DeviceNetworkEvents
 | where TimeGenerated > ago(30d)
 | summarize count() by RemoteIP, RemoteUrl, RemotePort, DeviceName
 | sort by count_ desc
 | limit 10
 
-Unusual Office 365 activities:
+// Unusual Office 365 activities:
 OfficeActivity
 | where TimeGenerated > ago(30d)
 | where RecordType == "AzureActiveDirectory"
@@ -209,7 +209,7 @@ OfficeActivity
 | sort by count_ desc
 | limit 10
 
-Suspicious logon failures:
+// Suspicious logon failures:
 SigninLogs
 | where TimeGenerated > ago(30d)
 | where ResultType !in (0, 50125, 50140)
@@ -217,7 +217,7 @@ SigninLogs
 | sort by count_ desc
 | limit 10
 
-Potential phishing email detection:
+// Potential phishing email detection:
 EmailEvents
 | where TimeGenerated > ago(30d)
 | where ThreatTypes has "phish"
@@ -225,7 +225,7 @@ EmailEvents
 | sort by count_ desc
 | limit 10
 
-Unusual file sharing activities:
+// Unusual file sharing activities:
 FileShareEvents
 | where TimeGenerated > ago(30d)
 | where ActionType in ("FileShared", "FileUnshared")
@@ -233,7 +233,7 @@ FileShareEvents
 | sort by count_ desc
 | limit 10
 
-Suspicious mailbox access attempts:
+// Suspicious mailbox access attempts:
 MailboxAccessEvents
 | where TimeGenerated > ago(30d)
 | where ActionType == "MailboxLogin"

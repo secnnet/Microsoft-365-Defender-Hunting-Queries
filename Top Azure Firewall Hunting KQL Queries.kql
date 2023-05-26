@@ -1,0 +1,293 @@
+// List of Unique Firewall Rules Triggered
+AzureDiagnostics
+| where ResourceType == "AZUREFIREWALLS"
+| summarize count() by ruleName_s
+
+// List of Source IPs That Triggered Firewall Rules Most Often:
+AzureDiagnostics
+| where ResourceType == "AZUREFIREWALLS"
+| summarize count() by callerIpAddress_s
+| top 10 by count_
+
+// Traffic Destinations:
+AzureDiagnostics
+| where ResourceType == "AZUREFIREWALLS"
+| summarize count() by destinationIp_s
+| order by count_ desc
+
+// Count of Firewall Events Over Time:
+AzureDiagnostics
+| where ResourceType == "AZUREFIREWALLS"
+| summarize count() by bin(TimeGenerated, 1h)
+| render timechart
+
+// Detected Threats by Severity:
+AzureDiagnostics
+| where ResourceType == "AZUREFIREWALLS"
+| summarize count() by threatSeverity_s
+| render piechart
+
+// Detected Threats by Category:
+AzureDiagnostics
+| where ResourceType == "AZUREFIREWALLS"
+| summarize count() by threatCategory_s
+| render piechart
+
+// List of Detected Threats by Source IP:
+AzureDiagnostics
+| where ResourceType == "AZUREFIREWALLS"
+| summarize count() by threatType_s, callerIpAddress_s
+| order by count_ desc
+
+// Detected Traffic From Non-Standard Ports:
+AzureDiagnostics
+| where ResourceType == "AZUREFIREWALLS" and destinationPort_s !in ("80", "443")
+| project TimeGenerated, callerIpAddress_s, destinationIp_s, destinationPort_s
+
+// Number of Allowed and Denied Connections:
+AzureDiagnostics
+| where ResourceType == "AZUREFIREWALLS"
+| summarize count() by action_s
+| render barchart
+
+// Suspicious ASN Activities:
+AzureDiagnostics
+| where ResourceType == "AZUREFIREWALLS"
+| summarize count() by callerASN_s
+| top 10 by count_
+
+// List of Top 10 Threat Types:
+AzureDiagnostics
+| where ResourceType == "AZUREFIREWALLS"
+| summarize count() by threatType_s
+| top 10 by count_ desc
+
+// Top Destination Ports:
+AzureDiagnostics
+| where ResourceType == "AZUREFIREWALLS"
+| summarize count() by destinationPort_s
+| top 10 by count_ desc
+
+// Connections by Protocol:
+AzureDiagnostics
+| where ResourceType == "AZUREFIREWALLS"
+| summarize count() by protocol_s
+| render piechart
+
+// Geographical Locations of Source IPs:
+AzureDiagnostics
+| where ResourceType == "AZUREFIREWALLS"
+| summarize count() by callerGeoLocation_s
+| render worldmap
+
+// Traffic from Known Malicious IPs:
+let malicious_ips = dynamic(["1.2.3.4", "2.3.4.5"]); // Replace with your // List of known malicious IPs
+AzureDiagnostics
+| where ResourceType == "AZUREFIREWALLS" and callerIpAddress_s in (malicious_ips)
+| project TimeGenerated, callerIpAddress_s, destinationIp_s, action_s
+
+// Unusual Volume of Firewall Events:
+AzureDiagnostics
+| where ResourceType == "AZUREFIREWALLS"
+| summarize EventCount = count() by bin(TimeGenerated, 1h)
+| sort by EventCount desc
+| project TimeGenerated, EventCount
+| render timechart
+
+// Top Blocked Traffic Types:
+AzureDiagnostics
+| where ResourceType == "AZUREFIREWALLS" and action_s == "Deny"
+| summarize count() by ruleName_s
+| top 10 by count_ desc
+
+// Traffic by Rule Collection Type (Application, Network, NAT):
+AzureDiagnostics
+| where ResourceType == "AZUREFIREWALLS"
+| summarize count() by ruleCollectionType_s
+| render barchart
+
+// List of Unique Source and Destination IP Pairs:
+AzureDiagnostics
+| where ResourceType == "AZUREFIREWALLS"
+| summarize count() by callerIpAddress_s, destinationIp_s
+| order by count_ desc
+
+// Traffic Destinations by Rule Type:
+AzureDiagnostics
+| where ResourceType == "AZUREFIREWALLS"
+| summarize count() by ruleType_s, destinationIp_s
+| order by count_ desc
+
+// Traffic From Non-Standard High Ports:
+AzureDiagnostics
+| where ResourceType == "AZUREFIREWALLS" and toint(destinationPort_s) > 1024
+| project TimeGenerated, callerIpAddress_s, destinationIp_s, destinationPort_s
+
+// Ratio of Denied vs Allowed Traffic:
+AzureDiagnostics
+| where ResourceType == "AZUREFIREWALLS"
+| summarize TrafficCount=count() by action_s
+| extend TotalTraffic=sum(TrafficCount)
+| project action_s, TrafficRatio = TrafficCount / todouble(TotalTraffic)
+| render barchart
+
+// Top 10 Source Countries:
+AzureDiagnostics
+| where ResourceType == "AZUREFIREWALLS"
+| summarize count() by callerCountry_s
+| top 10 by count_ desc
+
+// All Blocked Traffic to Critical Ports:
+AzureDiagnostics
+| where ResourceType == "AZUREFIREWALLS" and action_s == "Deny" and destinationPort_s in ("22", "3389")
+| project TimeGenerated, callerIpAddress_s, destinationIp_s, destinationPort_s
+
+// Blocked Traffic with High Severity Threats:
+AzureDiagnostics
+| where ResourceType == "AZUREFIREWALLS" and action_s == "Deny" and threatSeverity_s == "High"
+| project TimeGenerated, callerIpAddress_s, destinationIp_s, threatType_s
+
+// Unexpected Outbound Traffic:
+AzureDiagnostics
+| where ResourceType == "AZUREFIREWALLS" and direction_s == "Outbound" and destinationIp_s !in ("8.8.8.8", "8.8.4.4")
+| project TimeGenerated, callerIpAddress_s, destinationIp_s
+
+// Traffic To Uncommon Destinations:
+AzureDiagnostics
+| where ResourceType == "AZUREFIREWALLS"
+| summarize count() by destinationIp_s
+| where count_ < 5
+
+// Spike in Firewall Rule Triggers:
+AzureDiagnostics
+| where ResourceType == "AZUREFIREWALLS"
+| summarize EventCount=count() by bin(TimeGenerated, 1h), ruleName_s
+| sort by EventCount desc
+| project TimeGenerated, ruleName_s, EventCount
+| render timechart
+
+// Top Application Rules Triggered:
+AzureDiagnostics
+| where ResourceType == "AZUREFIREWALLS" and ruleCollectionType_s == "ApplicationRule"
+| summarize count() by ruleName_s
+| top 10 by count_ desc
+
+// List of Unique User Agents:
+AzureDiagnostics
+| where ResourceType == "AZUREFIREWALLS"
+| summarize by httpUserAgent_s
+
+// Top 10 Threats Detected:
+AzureDiagnostics
+| where ResourceType == "AZUREFIREWALLS"
+| summarize count() by threatName_s
+| top 10 by count_ desc
+
+// Connection Attempts to Non-Standard Ports:
+AzureDiagnostics
+| where ResourceType == "AZUREFIREWALLS" and toint(destinationPort_s) > 1024
+| project TimeGenerated, callerIpAddress_s, destinationIp_s, destinationPort_s
+
+// Suspicious User Agent Strings:
+AzureDiagnostics
+| where ResourceType == "AZUREFIREWALLS" and httpUserAgent_s contains "curl" or httpUserAgent_s contains "wget"
+| project TimeGenerated, callerIpAddress_s, httpUserAgent_s
+
+// Denied Connections Over Time:
+AzureDiagnostics
+| where ResourceType == "AZUREFIREWALLS" and action_s == "Deny"
+| summarize count() by bin(TimeGenerated, 1h)
+| render timechart
+
+// Successful Outbound Connections Over Time:
+AzureDiagnostics
+| where ResourceType == "AZUREFIREWALLS" and action_s == "Allow" and direction_s == "Outbound"
+| summarize count() by bin(TimeGenerated, 1h)
+| render timechart
+
+// Traffic Volume Per Protocol:
+AzureDiagnostics
+| where ResourceType == "AZUREFIREWALLS"
+| summarize count() by protocol_s
+| render piechart
+
+// Detected Threats By Destination IP:
+AzureDiagnostics
+| where ResourceType == "AZUREFIREWALLS"
+| summarize count() by threatType_s, destinationIp_s
+| order by count_ desc
+
+// Number of Allowed Connections from Specific Countries:
+AzureDiagnostics
+| where ResourceType == "AZUREFIREWALLS" and action_s == "Allow"
+| summarize count() by callerCountry_s
+| render barchart
+
+// Distribution of Network Traffic over Time:
+AzureDiagnostics
+| where ResourceType == "AZUREFIREWALLS"
+| summarize count() by bin(TimeGenerated, 1h)
+| render timechart
+
+// Top Destination IPs for Outbound Traffic:
+AzureDiagnostics
+| where ResourceType == "AZUREFIREWALLS" and direction_s == "Outbound"
+| summarize count() by destinationIp_s
+| top 10 by count_ desc
+
+// Top 10 Threat Categories Detected:
+AzureDiagnostics
+| where ResourceType == "AZUREFIREWALLS"
+| summarize count() by threatCategory_s
+| top 10 by count_ desc
+
+// Most Frequently Denied Outbound Connections:
+AzureDiagnostics
+| where ResourceType == "AZUREFIREWALLS" and action_s == "Deny" and direction_s == "Outbound"
+| summarize count() by callerIpAddress_s, destinationIp_s
+| order by count_ desc
+
+// List of Threats Detected from a Specific Country:
+AzureDiagnostics
+| where ResourceType == "AZUREFIREWALLS" and callerCountry_s == "Russia"
+| summarize count() by threatName_s
+| order by count_ desc
+
+// Detected Threats by Country:
+AzureDiagnostics
+| where ResourceType == "AZUREFIREWALLS"
+| summarize count() by threatName_s, callerCountry_s
+| order by count_ desc
+
+// Traffic from Tor Exit Nodes:
+let tor_exit_nodes = dynamic(["1.2.3.4", "2.3.4.5"]); // Replace with your // List of known Tor exit node IPs
+AzureDiagnostics
+| where ResourceType == "AZUREFIREWALLS" and callerIpAddress_s in (tor_exit_nodes)
+| project TimeGenerated, callerIpAddress_s, destinationIp_s
+
+// Frequency of Traffic by Source IP and Port:
+AzureDiagnostics
+| where ResourceType == "AZUREFIREWALLS"
+| summarize count() by callerIpAddress_s, sourcePort_s
+| order by count_ desc
+
+// Connection Attempts to Specific Service Ports:
+AzureDiagnostics
+| where ResourceType == "AZUREFIREWALLS" and destinationPort_s in ("22", "3389")
+| project TimeGenerated, callerIpAddress_s, destinationIp_s, destinationPort_s
+
+// All Blocked Traffic from a Specific Source IP:
+AzureDiagnostics
+| where ResourceType == "AZUREFIREWALLS" and action_s == "Deny" and callerIpAddress_s == "1.2.3.4"
+| project TimeGenerated, callerIpAddress_s, destinationIp_s
+
+// Outbound Traffic to Non-Standard Ports:
+AzureDiagnostics
+| where ResourceType == "AZUREFIREWALLS" and direction_s == "Outbound" and toint(destinationPort_s) > 1024
+| project TimeGenerated, callerIpAddress_s, destinationIp_s, destinationPort_s
+
+// Top 10 ASN of Caller IP:
+AzureDiagnostics
+| where ResourceType == "AZUREFIREWALLS"
+| summarize count() by callerASN_s
+| top 10 by count_ desc

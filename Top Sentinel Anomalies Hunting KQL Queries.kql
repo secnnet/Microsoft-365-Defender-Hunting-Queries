@@ -1,0 +1,336 @@
+// Brute Force Attacks on Users
+SecurityAlert
+| where ProviderName == "Microsoft 365 Defender"
+| where AlertName has "Suspicious sign-in activities"
+| summarize count() by UserPrincipalName, bin(TimeGenerated, 1h)
+| where count_ > 10
+| order by count_ desc
+// This query query looks for brute force attacks, where one user has more than 10 alerts in one hour for suspicious sign-in activities.
+
+// Unusual Volume of File Downloads
+FileEvents
+| where ActionType == "FileDownloaded"
+| summarize download_count = count() by bin(TimeGenerated, 1h), UserId
+| order by download_count desc
+// This query query tracks a large number of file downloads within a short period of time, which may indicate data exfiltration.
+
+// Out of Hours Login Attempts
+SigninLogs
+| extend hourOfDay = datetime_part("Hour", TimeGenerated)
+| where hourOfDay < 7 or hourOfDay > 19
+| summarize count() by UserId, hourOfDay
+| order by count_ desc
+// This query query can help you identify potentially suspicious login attempts outside of regular business hours.
+
+// Anomalous Office 365 Geographical Login
+SigninLogs
+| where TimeGenerated > ago(7d)
+| where ResultType == 0
+| extend country = tostring(LocationDetails.countryOrRegion)
+| summarize logins_per_country = dcount(UserId) by country
+| order by logins_per_country desc
+// This query query identifies sign-ins from countries that are not typically observed.
+
+// Logon From Multiple Geographies
+SigninLogs
+| where TimeGenerated > ago(1d)
+| extend country = tostring(LocationDetails.countryOrRegion)
+| summarize by UserPrincipalName, country
+| extend multiple_geo_logon = row_count() > 1 by UserPrincipalName
+| where multiple_geo_logon == true
+// This query query is for detecting potential impossible travel scenarios, where a user appears to sign in from different countries in a short period of time.
+
+// vAnomalous Email Send Volume
+EmailEvents
+| where ActionType == "Send"
+| summarize sent_mails=count() by bin(TimeGenerated, 1h), SenderFromAddress
+| order by sent_mails desc
+// This query detects a large volume of emails sent by a user within a short period of time, which could be indicative of a compromised account or a spamming attempt.
+
+// Mail Forwarding Rule Changes
+EmailEvents
+| where ActionType == "Set-Mailbox"
+| where Parameters has "ForwardingSmtpAddress"
+| project TimeGenerated, RecipientEmailAddress, Subject, SenderFromAddress
+// This query looks for changes in email forwarding rules, which can sometimes be an indicator of a compromised account.
+
+// Logins with Admin Privileges
+SigninLogs
+| where IsInteractive == true
+| where UserRoles has "Global Administrator" or UserRoles has "Privileged Role Administrator"
+| project TimeGenerated, UserPrincipalName, LocationDetails
+// This query can be used to track the activities of accounts with administrator privileges, which can be particularly risky if compromised.
+
+// Failed Login Attempts
+SigninLogs
+| where ResultType !in (0, 50058, 50144, 50148, 50149, 50157)
+| summarize failed_count=count() by bin(TimeGenerated, 1h), UserPrincipalName
+| order by failed_count desc
+// This query can be used to track a large number of failed login attempts, which could be indicative of a brute force attack.
+
+// Access from Blacklisted IP
+let BlacklistedIPs = datatable (IP_Address: string)
+[
+    "198.51.100.1",
+    "203.0.113.2",
+    // Add more IP addresses as needed
+];
+SigninLogs
+| where IPAddress in (BlacklistedIPs)
+| project TimeGenerated, UserPrincipalName, IPAddress, LocationDetails
+// This query can be used to detect access attempts from IP addresses that you've determined to be malicious.
+
+// Detecting Possible Data Exfiltration via Email Attachments
+EmailAttachmentInfo
+| where FileSize > 10000000  //size in bytes, adjust accordingly
+| join (
+    EmailEvents
+    | where ActionType == "Send"
+) on NetworkMessageId
+| project TimeGenerated, SenderFromAddress, RecipientEmailAddress, Subject, FileName, FileSize
+| order by FileSize desc
+// This query flags large email attachments being sent, which could indicate data exfiltration.
+
+// Unusual Email Subject Lines
+EmailEvents
+| where Subject matches regex ".*(urgent|important|request).*" //modify with suspicious keywords
+| project TimeGenerated, SenderFromAddress, RecipientEmailAddress, Subject
+// This query flags email with subject lines containing unusual or suspicious keywords.
+
+// Detecting Login Attempts from Disabled Accounts
+SigninLogs
+| where ResultType == "50057" // Sign-in attempt from a disabled account
+| project TimeGenerated, UserPrincipalName, IPAddress, LocationDetails
+// This query flags login attempts from disabled accounts, which could indicate malicious activity.
+
+// Anomalous Number of Teams or SharePoint Actions
+union OfficeActivity
+| where OfficeWorkload in ('SharePoint', 'Teams')
+| where ActionType == "FileUploaded" or ActionType == "TeamChatCreated"
+| summarize count() by UserId, bin(TimeGenerated, 1h)
+| order by count_ desc
+// This query flags unusual numbers of actions taken in SharePoint or Teams, indicating potential suspicious behavior.
+
+// Detecting Multiple Failed Attempts to Access Non-Existent Mailboxes
+SigninLogs
+| where ResultType == "50018" // User account doesn't exist
+| summarize attempt_count=count() by UserPrincipalName, bin(TimeGenerated, 1h)
+| where attempt_count > 5
+| order by attempt_count desc
+// This query highlights multiple failed attempts to access non-existent mailboxes, which could indicate a scanning or reconnaissance activity.
+
+// Abnormal Volume of Teams or SharePoint File Deletion
+union OfficeActivity
+| where OfficeWorkload in ('SharePoint', 'Teams')
+| where ActionType == "FileDeleted"
+| summarize delete_count=count() by bin(TimeGenerated, 1h), UserId
+| order by delete_count desc
+// This query helps to track unusual numbers of file deletions within SharePoint or Teams, which could be a sign of malicious insider activity.
+
+// Multiple Failed Attempts to Modify User Roles
+AuditLogs
+| where OperationName == "Add member to role."
+| where ResultStatus == "Failure"
+| summarize attempt_count=count() by bin(TimeGenerated, 1h), TargetUserOrGroupType, TargetUserOrGroupName
+| where attempt_count > 5
+| order by attempt_count desc
+// This query flags multiple failed attempts to modify user roles, which could indicate an attempted escalation of privileges.
+
+// Multiple Client Logins Within Short Time Span
+SigninLogs
+| summarize client_count=dcount(ClientAppUsed) by UserPrincipalName, bin(TimeGenerated, 1h)
+| where client_count > 5
+| order by client_count desc
+// This query helps to identify cases where a single user has logged in from multiple client applications within a short time span.
+
+// Multiple Users from the Same IP
+SigninLogs
+| summarize user_count=dcount(UserPrincipalName) by IPAddress, bin(TimeGenerated, 1h)
+| where user_count > 10
+| order by user_count desc
+// This query can be used to identify potentially suspicious behavior where multiple users are logging in from the same IP address within a short time span.
+
+// Detecting Anomalous PowerShell Activity
+AuditLogs
+| where OperationName == "PowerShell Command"
+| summarize command_count=count() by bin(TimeGenerated, 1h), UserId
+| where command_count > 20
+| order by command_count desc
+// This query can be used to detect unusual amounts of PowerShell activity from a specific user, which could indicate an attack.
+
+// Unusual VPN Login Attempts
+SigninLogs
+| where ClientAppUsed == "VPN"
+| summarize vpn_count=count() by bin(TimeGenerated, 1h), UserPrincipalName
+| where vpn_count > 5
+| order by vpn_count desc
+// This query tracks an unusual number of VPN login attempts within a short period of time.
+
+// Email with URL redirection
+EmailEvents
+| where Urls hasprefix "http://bit.ly" or Urls hasprefix "http://goo.gl"  // You can add more URL shorteners as needed
+| project TimeGenerated, SenderFromAddress, RecipientEmailAddress, Subject, Urls
+// This query query is useful in identifying phishing emails where attackers often use URL redirection.
+
+Unusual Email Recipients
+EmailEvents
+| summarize sent_mails=count() by RecipientEmailAddress
+| order by sent_mails desc
+// This query identifies recipients that receive a large volume of emails, which could be a sign of a spamming attempt or a compromised account.
+
+User Account Modification
+AuditLogs
+| where OperationName == "Update user"
+| project TimeGenerated, UserId, OperationName, ResultStatus
+// This query can track modifications to user accounts which could indicate potentially malicious activity.
+
+// Identifying Suspicious Email Attachments
+EmailAttachmentInfo
+| where FileType !in ("docx", "xlsx", "pptx", "pdf")  // Filter for uncommon or suspicious file types
+| project TimeGenerated, NetworkMessageId, FileName, FileType
+// This query helps in identifying suspicious email attachments, which can be used for phishing or malware attacks.
+
+// Suspicious Command in PowerShell Activity
+PowerShellActivity
+| where Parameters has "EncodedCommand" // PowerShell encoded commands can be used to hide malicious scripts
+| project TimeGenerated, UserId, Parameters
+// This query highlights the use of encoded commands in PowerShell which might be indicative of malicious activity.
+
+// Multiple Failed Attempts to Access Azure Resources
+AuditLogs
+| where ResultStatus == "Failure"
+| where TargetResourceType in ("Azure SQL Database", "Azure Storage", "Virtual Machine")
+| summarize attempt_count=count() by bin(TimeGenerated, 1h), UserId, TargetResourceType
+| where attempt_count > 5
+| order by attempt_count desc
+// This query flags multiple failed attempts to access Azure resources, which could indicate an attempted breach or malicious activity.
+
+// Suspicious Mail Forwarding
+EmailEvents
+| where ActionType == "Set-Mailbox"
+| where Parameters has "ForwardingSmtpAddress"
+| project TimeGenerated, RecipientEmailAddress, Subject, SenderFromAddress
+// This query query is useful in detecting suspicious mail forwarding, which could be indicative of a compromised account.
+
+// Multiple Password Reset or Change Attempts
+AuditLogs
+| where OperationName in ("Reset password", "Change password")
+| summarize attempt_count=count() by bin(TimeGenerated, 1h), UserId
+| where attempt_count > 5
+| order by attempt_count desc
+// This query highlights multiple password reset or change attempts which could signal account compromise attempts.
+
+// Abnormal Teams or SharePoint File Uploads
+union OfficeActivity
+| where OfficeWorkload in ('SharePoint', 'Teams')
+| where ActionType == "FileUploaded"
+| summarize upload_count=count() by bin(TimeGenerated, 1h), UserId
+| order by upload_count desc
+// This query tracks unusual numbers of file uploads within SharePoint or Teams, which could be a sign of data exfiltration.
+
+// Multiple Email Deletion Activities
+EmailEvents
+| where ActionType == "HardDelete"
+| summarize delete_count=count() by bin(TimeGenerated, 1h), SenderFromAddress
+| order by delete_count desc
+// This query detects an unusual number of hard deletion activities on emails, which could be a sign of an insider threat or a compromised account.
+
+// Suspicious Teams Activity
+union OfficeActivity
+| where OfficeWorkload == 'Teams'
+| where ActionType in ("TeamCreated", "TeamDeleted", "MemberAdded", "MemberRoleChanged")
+| project TimeGenerated, UserId, ActionType
+// This query helps to identify suspicious activities within Microsoft Teams, which could indicate malicious actions.
+
+// Unusual SharePoint File Access
+union OfficeActivity
+| where OfficeWorkload == 'SharePoint'
+| where ActionType in ("FileAccessed", "FileDeleted", "FileModified")
+| summarize access_count=count() by bin(TimeGenerated, 1h), UserId
+| order by access_count desc
+// This query identifies users who are accessing, deleting, or modifying files on SharePoint more frequently than usual.
+
+// Multiple Failed MFA Attempts
+SigninLogs
+| where ResultType == 50074 // failed MFA attempt
+| summarize mfa_fail_count=count() by bin(TimeGenerated, 1h), UserPrincipalName
+| where mfa_fail_count > 3
+| order by mfa_fail_count desc
+// This query flags multiple failed multi-factor authentication attempts, which could indicate a brute force attack or account compromise attempts.
+
+// Outgoing Emails with Suspicious Extensions
+EmailAttachmentInfo
+| where FileType in ('exe', 'js', 'vbs', 'bat')  // Filter for suspicious file types
+| join (
+    EmailEvents
+    | where ActionType == "Send"
+) on NetworkMessageId
+| project TimeGenerated, SenderFromAddress, RecipientEmailAddress, Subject, FileName, FileType
+| order by TimeGenerated desc
+// This query helps in identifying suspicious email attachments, which can be used for phishing or malware attacks.
+
+// Detecting Execution of Suspicious PowerShell Scripts
+PowerShellActivity
+| where ScriptBlockText has_any("Invoke-Mimikatz", "Invoke-WebRequest", "DownloadString", "Invoke-Expression") // Add more suspicious commands as needed
+| project TimeGenerated, UserId, ScriptBlockText
+// This query flags PowerShell commands that may be used for malicious purposes like downloading and executing payloads or invoking credential dumping tools like Mimikatz.
+
+// Suspicious User Agent Strings
+SigninLogs
+| where ClientAppUsed has_any("Mozilla/4.0", "python-requests") // Add more suspicious user agents as needed
+| project TimeGenerated, UserPrincipalName, ClientAppUsed, IPAddress
+// This query can be used to detect sign-in attempts using suspicious user agent strings, which could be indicative of a bot or an automated attack.
+
+// Unusual Volume of Failed SharePoint Actions
+union OfficeActivity
+| where OfficeWorkload == 'SharePoint'
+| where ResultStatus == "Failure"
+| summarize fail_count=count() by bin(TimeGenerated, 1h), UserId, ActionType
+| order by fail_count desc
+// This query flags a high number of failed actions in SharePoint, indicating potential suspicious activity.
+
+// Multiple Attempts to Access Non-Existent SharePoint Files
+union OfficeActivity
+| where OfficeWorkload == 'SharePoint'
+| where ActionType == "FileAccessed" and ResultStatus == "Failure"
+| summarize access_fail_count=count() by bin(TimeGenerated, 1h), UserId, ItemName
+| where access_fail_count > 5
+| order by access_fail_count desc
+// This query highlights multiple failed attempts to access non-existent files on SharePoint, which could signal an attempted breach or malicious activity.
+
+// Unusual Email Senders
+EmailEvents
+| summarize sent_mails=count() by SenderFromAddress
+| order by sent_mails desc
+// This query identifies senders that send a large volume of emails, which could be a sign of a spamming attempt or a compromised account.
+
+Detecting Clearing of Windows Security Logs
+SecurityEvent
+| where EventID == 1102
+| project TimeGenerated, Computer, User
+// This query will flag instances where Windows security logs are cleared, which could indicate an attempt to hide malicious activities.
+
+// Detecting Usage of Potential Exploitation Tools
+DeviceProcessEvents
+| where InitiatingProcessFileName in ("mimikatz.exe", "powersploit.exe", "metasploit.exe")
+| project TimeGenerated, DeviceName, InitiatingProcessFileName, InitiatingProcessCommandLine
+// This query flags when known exploitation tools, such as Mimikatz, Powersploit, or Metasploit are used.
+
+// Failed Office 365 Login Attempts
+SigninLogs
+| where ResultType == "50126" // Sign-in attempt was blocked because it came from an IP address with malicious activity
+| project TimeGenerated, UserPrincipalName, IPAddress, Location, ClientAppUsed
+// This query identifies failed login attempts to Office 365 which were blocked due to originating from a suspicious IP.
+
+// Anomalous Remote PowerShell Activity
+PowerShellCommand
+| where HostName has "Exchange"
+| summarize command_count=count() by UserId, bin(TimeGenerated, 1h)
+| order by command_count desc
+// This query can be used to detect unusual amounts of remote PowerShell activity targeting Exchange servers, which could indicate an attack.
+
+// Large Email Attachments
+EmailAttachmentInfo
+| where FileSize > 25000000 // File size > 25 MB
+| project TimeGenerated, NetworkMessageId, FileName, FileSize
+// This query helps in identifying large email attachments, which can be used for data exfiltration.
